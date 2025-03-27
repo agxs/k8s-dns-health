@@ -3,10 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"os"
 	"strings"
 
 	"github.com/agxs/k8s-dns-health/internal/dns"
+
+	"k8s.io/client-go/util/homedir"
 )
 
 func main() {
@@ -31,6 +34,13 @@ func main() {
 	addresses := flag.String("addresses", "kubernetes.default,google.com", "The DNS test queries")
 	failureType := flag.String("failureType", "teams", "Options for failure actions, 'teams', 'restart', 'both'")
 
+	var kubeconfig *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+
 	flag.Parse()
 
 	if *testType != "server" && *testType != "k8s" {
@@ -48,9 +58,14 @@ func main() {
 		Port:        *port,
 		Addresses:   addressesSplit,
 		FailureType: *failureType,
+		KubeConfig:  *kubeconfig,
 	}
 
-	_, err := dns.TestDns(&params)
+	test, err := dns.GetTestType(&params)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
+	_, err = dns.TestDns(&params, test)
 	if err != nil {
 		//todo handle failure type
 	}

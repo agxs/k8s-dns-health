@@ -7,6 +7,10 @@ import (
 	"net"
 	"strconv"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Params struct {
@@ -17,10 +21,11 @@ type Params struct {
 	Port        int
 	Addresses   []string
 	FailureType string
+	KubeConfig  string
 }
 
 type TestType interface {
-	FetchDnsServers() []string
+	FetchDnsServers() ([]string, error)
 }
 
 type FailureType interface {
@@ -31,17 +36,60 @@ type ServerTest struct {
 	server string
 }
 
-func (s ServerTest) FetchDnsServers() []string {
-	return []string{s.server}
+func (s ServerTest) FetchDnsServers() ([]string, error) {
+	return []string{s.server}, nil
 }
 
-func TestDns(params *Params) (bool, error) {
+type K8sTest struct {
+	clientset    *kubernetes.Clientset
+	namespace    string
+	labelMatcher string
+}
+
+func (k K8sTest) FetchDnsServers() ([]string, error) {
+	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: k.labelMatcher,
+	})
+	if err != nil {
+		return []string{}, err
+	}
+	fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
 	dnsServers := []string{}
+	for _, pod := range pods.Items {
+		fmt.Printf("Pod Name: %s, Pod IP: %s\n", pod.Name, pod.Status.PodIP)
+		dnsServers = append(dnsServers, pod.Status.PodIP)
+	}
+
+	return dnsServers, nil
+}
+
+func GetTestType(params *Params) (TestType, error) {
+	var test TestType
+
 	if params.TestType == "server" {
-		test := ServerTest{server: params.Server}
-		dnsServers = test.FetchDnsServers()
+		test = ServerTest{server: params.Server}
+	} else if params.TestType == "k8s" {
+		config, err := clientcmd.BuildConfigFromFlags("", params.KubeConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		test = K8sTest{clientset: clientset, namespace: params.Namespace, labelMatcher: params.Label}
 	} else {
-		return false, errors.New("Unknown test type")
+		return nil, errors.New("Unknown test type")
+	}
+
+	return test, nil
+}
+
+func TestDns(params *Params, test TestType) (bool, error) {
+	dnsServers, err := test.FetchDnsServers()
+	if err != nil {
+		return false, err
 	}
 
 	for _, s := range dnsServers {
