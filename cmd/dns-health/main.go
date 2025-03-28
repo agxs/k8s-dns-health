@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"path/filepath"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/agxs/k8s-dns-health/internal/dns"
+	"github.com/agxs/k8s-dns-health/internal/notifications"
 
 	"k8s.io/client-go/util/homedir"
 )
@@ -32,7 +33,7 @@ func main() {
 	server := flag.String("server", "192.168.0.1", "The server IP to query")
 	port := flag.Int("port", 53, "The server port to query")
 	addresses := flag.String("addresses", "kubernetes.default,google.com", "The DNS test queries")
-	failureType := flag.String("failureType", "teams", "Options for failure actions, 'teams', 'restart', 'both'")
+	notificationType := flag.String("notificationType", "teams", "Options for notification actions, 'teams', 'restart', 'both'")
 
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
@@ -51,14 +52,14 @@ func main() {
 	addressesSplit := strings.Split(*addresses, ",")
 
 	params := dns.Params{
-		TestType:    *testType,
-		Namespace:   *namespace,
-		Label:       *label,
-		Server:      *server,
-		Port:        *port,
-		Addresses:   addressesSplit,
-		FailureType: *failureType,
-		KubeConfig:  *kubeconfig,
+		TestType:         *testType,
+		Namespace:        *namespace,
+		Label:            *label,
+		Server:           *server,
+		Port:             *port,
+		Addresses:        addressesSplit,
+		NotificationType: *notificationType,
+		KubeConfig:       *kubeconfig,
 	}
 
 	test, err := dns.GetTestType(&params)
@@ -67,6 +68,8 @@ func main() {
 	}
 	_, err = dns.TestDns(&params, test)
 	if err != nil {
-		//todo handle failure type
+		fmt.Printf("Error: %v\n", err)
+		notification := notifications.TeamsNotification{}
+		notification.Notify(err)
 	}
 }

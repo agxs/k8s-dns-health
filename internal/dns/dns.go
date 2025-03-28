@@ -14,22 +14,18 @@ import (
 )
 
 type Params struct {
-	TestType    string
-	Namespace   string
-	Label       string
-	Server      string
-	Port        int
-	Addresses   []string
-	FailureType string
-	KubeConfig  string
+	TestType         string
+	Namespace        string
+	Label            string
+	Server           string
+	Port             int
+	Addresses        []string
+	NotificationType string
+	KubeConfig       string
 }
 
 type TestType interface {
 	FetchDnsServers() ([]string, error)
-}
-
-type FailureType interface {
-	OnFailure()
 }
 
 type ServerTest struct {
