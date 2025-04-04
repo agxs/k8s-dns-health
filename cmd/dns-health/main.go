@@ -65,11 +65,45 @@ func main() {
 	test, err := dns.GetTestType(&params)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
 	}
-	_, err = dns.TestDns(&params, test)
+
+	var errorServer string
+	_, errorServer, err = dns.TestDns(&params, test)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
-		notification := notifications.TeamsNotification{}
-		notification.Notify(err)
+		notification, err := getNotificationType(params, test)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		notification.Notify(errorServer, err)
 	}
+}
+
+func isK8sTest(testType dns.TestType) bool {
+	_, ok := testType.(dns.K8sTest)
+	return ok
+}
+
+func getNotificationType(params dns.Params, testType dns.TestType) (notifications.NotificationType, error) {
+	if params.NotificationType == "teams" {
+		return notifications.TeamsNotification{}, nil
+	} else if params.NotificationType == "restart" {
+		if !isK8sTest(testType) {
+			return nil, fmt.Errorf("restart notification type only works with k8s")
+		}
+
+		return notifications.RestartNotification{K8sTest: testType.(dns.K8sTest)}, nil
+	} else if params.NotificationType == "both" {
+		if !isK8sTest(testType) {
+			return nil, fmt.Errorf("both notification type only works with k8s")
+		}
+
+		teams := notifications.TeamsNotification{}
+		restart := notifications.RestartNotification{K8sTest: testType.(dns.K8sTest)}
+		return notifications.CombinedNotification{TeamsNotification: teams, RestartNotification: restart}, nil
+	}
+
+	return nil, fmt.Errorf("Unknown notification type: %s", params.NotificationType)
 }

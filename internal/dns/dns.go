@@ -37,14 +37,19 @@ func (s ServerTest) FetchDnsServers() ([]string, error) {
 }
 
 type K8sTest struct {
-	clientset    *kubernetes.Clientset
-	namespace    string
-	labelMatcher string
+	Clientset    *kubernetes.Clientset
+	Namespace    string
+	LabelMatcher string
+}
+
+type DnsError struct {
+	Server string
+	Error error
 }
 
 func (k K8sTest) FetchDnsServers() ([]string, error) {
-	pods, err := k.clientset.CoreV1().Pods(k.namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: k.labelMatcher,
+	pods, err := k.Clientset.CoreV1().Pods(k.Namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: k.LabelMatcher,
 	})
 	if err != nil {
 		return []string{}, err
@@ -74,7 +79,7 @@ func GetTestType(params *Params) (TestType, error) {
 		if err != nil {
 			return nil, err
 		}
-		test = K8sTest{clientset: clientset, namespace: params.Namespace, labelMatcher: params.Label}
+		test = K8sTest{Clientset: clientset, Namespace: params.Namespace, LabelMatcher: params.Label}
 	} else {
 		return nil, errors.New("Unknown test type")
 	}
@@ -82,20 +87,20 @@ func GetTestType(params *Params) (TestType, error) {
 	return test, nil
 }
 
-func TestDns(params *Params, test TestType) (bool, error) {
+func TestDns(params *Params, test TestType) (bool, string, error) {
 	dnsServers, err := test.FetchDnsServers()
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 
 	for _, s := range dnsServers {
 		_, err := QueryDns(params.Addresses, s, params.Port)
 		if err != nil {
-			return false, err
+			return false, s, err
 		}
 	}
 
-	return true, nil
+	return true, "", nil
 }
 
 func QueryDns(addresses []string, server string, port int) (bool, error) {
