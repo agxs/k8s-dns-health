@@ -44,7 +44,7 @@ type K8sTest struct {
 
 type DnsError struct {
 	Server string
-	Error error
+	Error  error
 }
 
 func (k K8sTest) FetchDnsServers() ([]string, error) {
