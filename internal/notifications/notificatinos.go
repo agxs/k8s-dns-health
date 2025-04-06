@@ -73,16 +73,22 @@ func (n TeamsNotification) Notify(dnsServer string, dnsError error) error {
 }
 
 func (n RestartNotification) Notify(dnsServer string, err error) error {
-	podList, err := n.K8sTest.Clientset.CoreV1().Pods(n.K8sTest.Namespace).List(context.Background(), metav1.ListOptions{
-		FieldSelector: "status.podIP=" + dnsServer,
-	})
+	podList, err := n.K8sTest.Clientset.CoreV1().
+		Pods(n.K8sTest.Namespace).
+		List(context.Background(), metav1.ListOptions{
+			FieldSelector: "status.podIP=" + dnsServer,
+		})
 	if err != nil {
 		return err
 	}
 
 	var podNameToDelete string
 	if len(podList.Items) != 1 {
-		return fmt.Errorf("No pod found in namespace %s with IP %s\n", n.K8sTest.Namespace, dnsServer)
+		return fmt.Errorf(
+			"No pod found in namespace %s with IP %s\n",
+			n.K8sTest.Namespace,
+			dnsServer,
+		)
 	} else {
 		for _, pod := range podList.Items {
 			podNameToDelete = pod.Name
@@ -92,7 +98,9 @@ func (n RestartNotification) Notify(dnsServer string, err error) error {
 		}
 	}
 
-	err = n.K8sTest.Clientset.CoreV1().Pods(n.K8sTest.Namespace).Delete(context.Background(), podNameToDelete, metav1.DeleteOptions{})
+	err = n.K8sTest.Clientset.CoreV1().
+		Pods(n.K8sTest.Namespace).
+		Delete(context.Background(), podNameToDelete, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("Error deleting the pod %s: %v\n", podNameToDelete, err)
 	}

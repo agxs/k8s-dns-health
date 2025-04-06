@@ -33,11 +33,19 @@ func main() {
 	server := flag.String("server", "192.168.0.1", "The server IP to query")
 	port := flag.Int("port", 53, "The server port to query")
 	addresses := flag.String("addresses", "kubernetes.default,google.com", "The DNS test queries")
-	notificationType := flag.String("notificationType", "teams", "Options for notification actions, 'teams', 'restart', 'both'")
+	notificationType := flag.String(
+		"notificationType",
+		"teams",
+		"Options for notification actions, 'teams', 'restart', 'both'",
+	)
 
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig = flag.String(
+			"kubeconfig",
+			filepath.Join(home, ".kube", "config"),
+			"(optional) absolute path to the kubeconfig file",
+		)
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
@@ -86,7 +94,10 @@ func isK8sTest(testType dns.TestType) bool {
 	return ok
 }
 
-func getNotificationType(params dns.Params, testType dns.TestType) (notifications.NotificationType, error) {
+func getNotificationType(
+	params dns.Params,
+	testType dns.TestType,
+) (notifications.NotificationType, error) {
 	if params.NotificationType == "teams" {
 		return notifications.TeamsNotification{}, nil
 	} else if params.NotificationType == "restart" {
