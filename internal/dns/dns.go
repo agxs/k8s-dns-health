@@ -10,6 +10,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -70,9 +71,15 @@ func GetTestType(params *Params) (TestType, error) {
 	if params.TestType == "server" {
 		test = ServerTest{server: params.Server}
 	} else if params.TestType == "k8s" {
-		config, err := clientcmd.BuildConfigFromFlags("", params.KubeConfig)
+		// First assume in cluster config
+		config, err := rest.InClusterConfig()
 		if err != nil {
-			return nil, err
+			fmt.Printf("In cluster k8s config unavailable, trying a .kube config file: %v\n", err)
+			// if no incluster config then try and use a .kubeconfig file
+			config, err = clientcmd.BuildConfigFromFlags("", params.KubeConfig)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		clientset, err := kubernetes.NewForConfig(config)
