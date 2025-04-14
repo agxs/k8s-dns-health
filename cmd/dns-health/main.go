@@ -85,7 +85,11 @@ func main() {
 			fmt.Printf("Error: %v\n", failureErr)
 			os.Exit(1)
 		}
-		failureAction.DoAction(errorServer, err)
+		failureErr = failureAction.DoAction(errorServer, err)
+		if failureErr != nil {
+			fmt.Printf("Action error: %v\n", failureErr)
+			os.Exit(1)
+		}
 	}
 }
 
