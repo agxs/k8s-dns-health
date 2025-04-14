@@ -38,7 +38,7 @@ func (s ServerTest) FetchDnsServers() ([]string, error) {
 }
 
 type K8sTest struct {
-	Clientset    *kubernetes.Clientset
+	Client       kubernetes.Interface
 	Namespace    string
 	LabelMatcher string
 }
@@ -49,7 +49,7 @@ type DnsError struct {
 }
 
 func (k K8sTest) FetchDnsServers() ([]string, error) {
-	pods, err := k.Clientset.CoreV1().Pods(k.Namespace).List(context.TODO(), metav1.ListOptions{
+	pods, err := k.Client.CoreV1().Pods(k.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: k.LabelMatcher,
 	})
 	if err != nil {
@@ -86,7 +86,7 @@ func GetTestType(params *Params) (TestType, error) {
 		if err != nil {
 			return nil, err
 		}
-		test = K8sTest{Clientset: clientset, Namespace: params.Namespace, LabelMatcher: params.Label}
+		test = K8sTest{Client: clientset, Namespace: params.Namespace, LabelMatcher: params.Label}
 	} else {
 		return nil, errors.New("Unknown test type")
 	}

@@ -73,7 +73,7 @@ func (n TeamsFailureAction) DoAction(dnsServer string, dnsError error) error {
 }
 
 func (n RestartFailureAction) DoAction(dnsServer string, err error) error {
-	podList, err := n.K8sTest.Clientset.CoreV1().
+	podList, err := n.K8sTest.Client.CoreV1().
 		Pods(n.K8sTest.Namespace).
 		List(context.Background(), metav1.ListOptions{
 			FieldSelector: "status.podIP=" + dnsServer,
@@ -98,7 +98,7 @@ func (n RestartFailureAction) DoAction(dnsServer string, err error) error {
 		}
 	}
 
-	err = n.K8sTest.Clientset.CoreV1().
+	err = n.K8sTest.Client.CoreV1().
 		Pods(n.K8sTest.Namespace).
 		Delete(context.Background(), podNameToDelete, metav1.DeleteOptions{})
 	if err != nil {
