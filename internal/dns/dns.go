@@ -14,14 +14,14 @@ import (
 )
 
 type Params struct {
-	TestType         string
-	Namespace        string
-	Label            string
-	Server           string
-	Port             int
-	Addresses        []string
-	NotificationType string
-	KubeConfig       string
+	TestType      string
+	Namespace     string
+	Label         string
+	Server        string
+	Port          int
+	Addresses     []string
+	FailureAction string
+	KubeConfig    string
 }
 
 type TestType interface {

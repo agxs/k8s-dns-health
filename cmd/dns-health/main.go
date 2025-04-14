@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/agxs/k8s-dns-health/internal/actions"
 	"github.com/agxs/k8s-dns-health/internal/dns"
-	"github.com/agxs/k8s-dns-health/internal/notifications"
 
 	"k8s.io/client-go/util/homedir"
 )
@@ -33,10 +33,10 @@ func main() {
 	server := flag.String("server", "192.168.0.1", "The server IP to query")
 	port := flag.Int("port", 53, "The server port to query")
 	addresses := flag.String("addresses", "kubernetes.default,google.com", "The DNS test queries")
-	notificationType := flag.String(
-		"notificationType",
+	failureAction := flag.String(
+		"failureAction",
 		"teams",
-		"Options for notification actions, 'teams', 'restart', 'both'",
+		"Options for failure actions, 'teams', 'restart', 'both'",
 	)
 
 	var kubeconfig *string
@@ -60,14 +60,14 @@ func main() {
 	addressesSplit := strings.Split(*addresses, ",")
 
 	params := dns.Params{
-		TestType:         *testType,
-		Namespace:        *namespace,
-		Label:            *label,
-		Server:           *server,
-		Port:             *port,
-		Addresses:        addressesSplit,
-		NotificationType: *notificationType,
-		KubeConfig:       *kubeconfig,
+		TestType:      *testType,
+		Namespace:     *namespace,
+		Label:         *label,
+		Server:        *server,
+		Port:          *port,
+		Addresses:     addressesSplit,
+		FailureAction: *failureAction,
+		KubeConfig:    *kubeconfig,
 	}
 
 	test, err := dns.GetTestType(&params)
@@ -80,12 +80,12 @@ func main() {
 	_, errorServer, err = dns.TestDns(&params, test)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
-		notification, err := getNotificationType(params, test)
+		failureAction, err := getFailureAction(params, test)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		notification.Notify(errorServer, err)
+		failureAction.DoAction(errorServer, err)
 	}
 }
 
@@ -94,27 +94,27 @@ func isK8sTest(testType dns.TestType) bool {
 	return ok
 }
 
-func getNotificationType(
+func getFailureAction(
 	params dns.Params,
 	testType dns.TestType,
-) (notifications.NotificationType, error) {
-	if params.NotificationType == "teams" {
-		return notifications.TeamsNotification{}, nil
-	} else if params.NotificationType == "restart" {
+) (actions.FailureAction, error) {
+	if params.FailureAction == "teams" {
+		return actions.TeamsFailureAction{}, nil
+	} else if params.FailureAction == "restart" {
 		if !isK8sTest(testType) {
-			return nil, fmt.Errorf("restart notification type only works with k8s")
+			return nil, fmt.Errorf("restart failure action only works with k8s")
 		}
 
-		return notifications.RestartNotification{K8sTest: testType.(dns.K8sTest)}, nil
-	} else if params.NotificationType == "both" {
+		return actions.RestartFailureAction{K8sTest: testType.(dns.K8sTest)}, nil
+	} else if params.FailureAction == "both" {
 		if !isK8sTest(testType) {
-			return nil, fmt.Errorf("both notification type only works with k8s")
+			return nil, fmt.Errorf("both failure action only works with k8s")
 		}
 
-		teams := notifications.TeamsNotification{}
-		restart := notifications.RestartNotification{K8sTest: testType.(dns.K8sTest)}
-		return notifications.CombinedNotification{TeamsNotification: teams, RestartNotification: restart}, nil
+		teams := actions.TeamsFailureAction{}
+		restart := actions.RestartFailureAction{K8sTest: testType.(dns.K8sTest)}
+		return actions.CombinedFailureAction{TeamsFailureAction: teams, RestartFailureAction: restart}, nil
 	}
 
-	return nil, fmt.Errorf("Unknown notification type: %s", params.NotificationType)
+	return nil, fmt.Errorf("Unknown failure action: %s", params.FailureAction)
 }

@@ -1,4 +1,4 @@
-package notifications
+package actions
 
 import (
 	"bytes"
@@ -13,22 +13,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type NotificationType interface {
-	Notify(dnsServer string, err error) error
+type FailureAction interface {
+	DoAction(dnsServer string, err error) error
 }
 
-type TeamsNotification struct{}
+type TeamsFailureAction struct{}
 
-type RestartNotification struct {
+type RestartFailureAction struct {
 	K8sTest dns.K8sTest
 }
 
-type CombinedNotification struct {
-	TeamsNotification   TeamsNotification
-	RestartNotification RestartNotification
+type CombinedFailureAction struct {
+	TeamsFailureAction   TeamsFailureAction
+	RestartFailureAction RestartFailureAction
 }
 
-func (n TeamsNotification) Notify(dnsServer string, dnsError error) error {
+func (n TeamsFailureAction) DoAction(dnsServer string, dnsError error) error {
 	message := fmt.Sprintf("Server: %s, error: %s", dnsServer, dnsError.Error())
 
 	webhookURL := os.Getenv("TEAMS_WEBHOOK_URL")
@@ -72,7 +72,7 @@ func (n TeamsNotification) Notify(dnsServer string, dnsError error) error {
 	return nil
 }
 
-func (n RestartNotification) Notify(dnsServer string, err error) error {
+func (n RestartFailureAction) DoAction(dnsServer string, err error) error {
 	podList, err := n.K8sTest.Clientset.CoreV1().
 		Pods(n.K8sTest.Namespace).
 		List(context.Background(), metav1.ListOptions{
@@ -110,13 +110,13 @@ func (n RestartNotification) Notify(dnsServer string, err error) error {
 	return nil
 }
 
-func (n CombinedNotification) Notify(dnsServer string, err error) error {
-	new_err := n.TeamsNotification.Notify(dnsServer, err)
+func (n CombinedFailureAction) DoAction(dnsServer string, err error) error {
+	new_err := n.TeamsFailureAction.DoAction(dnsServer, err)
 	if new_err != nil {
 		return new_err
 	}
 
-	new_err = n.RestartNotification.Notify(dnsServer, err)
+	new_err = n.RestartFailureAction.DoAction(dnsServer, err)
 	if new_err != nil {
 		return new_err
 	}
