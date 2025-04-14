@@ -80,9 +80,9 @@ func main() {
 	_, errorServer, err = dns.TestDns(&params, test)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
-		failureAction, err := getFailureAction(params, test)
-		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+		failureAction, failureErr := getFailureAction(params, test)
+		if failureErr != nil {
+			fmt.Printf("Error: %v\n", failureErr)
 			os.Exit(1)
 		}
 		failureAction.DoAction(errorServer, err)
